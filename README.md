@@ -24,10 +24,6 @@ A beautiful, modern Flutter app for tracking daily chai duty among friend groups
 - 📱 **Pull to Refresh** - Manual data refresh on home screen
 - 🎯 **Session Persistence** - Stay logged in across app restarts
 
-## 📸 Screenshots
-
-> Add your screenshots here after deployment
-
 ## 🚀 Getting Started
 
 ### Prerequisites
