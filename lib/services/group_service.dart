@@ -161,7 +161,9 @@ class GroupService {
   // Clear YouTube channel URL
   Future<void> clearYouTubeChannel(String groupId) async {
     await _firestore.collection('groups').doc(groupId).update({
-      'youtubeChannelUrl': null,
+      'youtubeChannelUrl': FieldValue.delete(),
     });
   }
+
+
 }

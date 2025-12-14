@@ -88,15 +88,15 @@ class YouTubeService {
 
   Future<List<YouTubeVideo>> fetchLatestVideos(String channelUrl) async {
     try {
-      // Check cache first
-      final cachedVideos = await _getCachedVideos();
-      if (cachedVideos != null) {
-        return cachedVideos;
-      }
-
       final channelId = await _getChannelId(channelUrl);
       if (channelId == null) {
         throw 'Could not extract channel ID from URL';
+      }
+
+      // Check cache first (using channelId)
+      final cachedVideos = await _getCachedVideos(channelId);
+      if (cachedVideos != null) {
+        return cachedVideos;
       }
 
       final apiKey = await _getApiKey();
@@ -152,7 +152,7 @@ class YouTubeService {
       }).toList();
 
       // Cache the results
-      await _cacheVideos(videos);
+      await _cacheVideos(channelId, videos);
 
       return videos;
     } catch (e) {
@@ -199,15 +199,18 @@ class YouTubeService {
     return null;
   }
 
-  Future<List<YouTubeVideo>?> _getCachedVideos() async {
+  Future<List<YouTubeVideo>?> _getCachedVideos(String channelId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final cacheTime = prefs.getInt(_cacheTimeKey);
+      final cacheKey = '${_cacheKey}_$channelId';
+      final cacheTimeKey = '${_cacheTimeKey}_$channelId';
+      
+      final cacheTime = prefs.getInt(cacheTimeKey);
       
       if (cacheTime != null) {
         final cachedDate = DateTime.fromMillisecondsSinceEpoch(cacheTime);
         if (DateTime.now().difference(cachedDate) < _cacheDuration) {
-          final cachedData = prefs.getString(_cacheKey);
+          final cachedData = prefs.getString(cacheKey);
           if (cachedData != null) {
             final List<dynamic> jsonList = json.decode(cachedData);
             return jsonList.map((json) => YouTubeVideo.fromJson(json, json['statistics'])).toList();
@@ -220,30 +223,50 @@ class YouTubeService {
     return null;
   }
 
-  Future<void> _cacheVideos(List<YouTubeVideo> videos) async {
+  Future<void> _cacheVideos(String channelId, List<YouTubeVideo> videos) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final jsonList = videos.map((v) => {
-        'id': {'videoId': v.videoId},
-        'snippet': {
-          'title': v.title,
-          'thumbnails': {'high': {'url': v.thumbnailUrl}},
-          'channelTitle': v.channelTitle,
-          'publishedAt': v.publishedAt.toIso8601String(),
-        },
-        'statistics': {
-          'viewCount': v.viewCount.toString(),
-          'likeCount': v.likeCount.toString(),
-        },
-        'contentDetails': {
-          'duration': v.duration,
-        },
-      }).toList();
+      final cacheKey = '${_cacheKey}_$channelId';
+      final cacheTimeKey = '${_cacheTimeKey}_$channelId';
       
-      await prefs.setString(_cacheKey, json.encode(jsonList));
-      await prefs.setInt(_cacheTimeKey, DateTime.now().millisecondsSinceEpoch);
+      final jsonList = videos.map((v) => {
+          'id': {'videoId': v.videoId},
+          'snippet': {
+            'title': v.title,
+            'thumbnails': {'high': {'url': v.thumbnailUrl}},
+            'channelTitle': v.channelTitle,
+            'publishedAt': v.publishedAt.toIso8601String(),
+          },
+          'statistics': {
+            'viewCount': v.viewCount.toString(),
+            'likeCount': v.likeCount.toString(),
+            'commentCount': v.commentCount.toString(),
+          },
+          'contentDetails': {
+            'duration': v.duration,
+          },
+        }).toList();
+      
+      await prefs.setString(cacheKey, json.encode(jsonList));
+      await prefs.setInt(cacheTimeKey, DateTime.now().millisecondsSinceEpoch);
     } catch (e) {
       print('Error caching videos: $e');
+    }
+  }
+
+  Future<void> clearCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      // Clear all keys starting with our prefix
+      final keys = prefs.getKeys();
+      for (final key in keys) {
+        if (key.startsWith(_cacheKey) || key.startsWith(_cacheTimeKey)) {
+          await prefs.remove(key);
+        }
+      }
+      print('YouTube cache cleared');
+    } catch (e) {
+      print('Error clearing cache: $e');
     }
   }
 }

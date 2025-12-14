@@ -154,6 +154,23 @@ class AppProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  // Delete Account
+  Future<void> deleteAccount() async {
+    _setLoading(true);
+    try {
+      await _authService.deleteAccount();
+      _currentUser = null;
+      _selectedGroup = null;
+      _userGroups = [];
+      notifyListeners();
+    } catch (e) {
+      _setError(e.toString());
+      rethrow;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   // Create group
   Future<bool> createGroup(String name) async {
     if (_currentUser == null) return false;

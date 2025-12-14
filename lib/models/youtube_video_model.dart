@@ -5,6 +5,7 @@ class YouTubeVideo {
   final String channelTitle;
   final int viewCount;
   final int likeCount;
+  final int commentCount;
   final DateTime publishedAt;
   final String duration;
 
@@ -15,6 +16,7 @@ class YouTubeVideo {
     required this.channelTitle,
     required this.viewCount,
     required this.likeCount,
+    required this.commentCount,
     required this.publishedAt,
     required this.duration,
   });
@@ -33,6 +35,7 @@ class YouTubeVideo {
       channelTitle: snippet['channelTitle'] ?? '',
       viewCount: int.tryParse(stats['viewCount']?.toString() ?? '0') ?? 0,
       likeCount: int.tryParse(stats['likeCount']?.toString() ?? '0') ?? 0,
+      commentCount: int.tryParse(stats['commentCount']?.toString() ?? '0') ?? 0,
       publishedAt: DateTime.parse(snippet['publishedAt'] ?? DateTime.now().toIso8601String()),
       duration: _parseDuration(contentDetails?['duration'] ?? 'PT0S'),
     );
@@ -70,11 +73,11 @@ class YouTubeVideo {
   
   String get formattedViews {
     if (viewCount >= 1000000) {
-      return '${(viewCount / 1000000).toStringAsFixed(1)}M views';
+      return '${(viewCount / 1000000).toStringAsFixed(1)}M';
     } else if (viewCount >= 1000) {
-      return '${(viewCount / 1000).toStringAsFixed(1)}K views';
+      return '${(viewCount / 1000).toStringAsFixed(1)}K';
     }
-    return '$viewCount views';
+    return viewCount.toString();
   }
   
   String get formattedLikes {
@@ -83,6 +86,15 @@ class YouTubeVideo {
     } else if (likeCount >= 1000) {
       return '${(likeCount / 1000).toStringAsFixed(1)}K';
     }
-    return '$likeCount';
+    return likeCount.toString();
+  }
+
+  String get formattedComments {
+    if (commentCount >= 1000000) {
+      return '${(commentCount / 1000000).toStringAsFixed(1)}M';
+    } else if (commentCount >= 1000) {
+      return '${(commentCount / 1000).toStringAsFixed(1)}K';
+    }
+    return commentCount.toString();
   }
 }

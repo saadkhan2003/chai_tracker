@@ -7,6 +7,7 @@ import '../../services/debt_service.dart';
 import '../../models/debt_model.dart';
 import '../../models/user_model.dart';
 import 'package:intl/intl.dart';
+import 'package:google_fonts/google_fonts.dart'; // Added import
 import '../../widgets/glass_card.dart';
 import '../../widgets/glass_segmented_control.dart';
 
@@ -43,6 +44,13 @@ class _DebtsScreenState extends State<DebtsScreen> with SingleTickerProviderStat
             title: const Text('Debts'),
             backgroundColor: Colors.transparent,
             centerTitle: true,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.history, color: AppTheme.primaryGold),
+                tooltip: 'History',
+                onPressed: () => _showDebtHistory(context, provider),
+              ),
+            ],
           ),
           floatingActionButton: FloatingActionButton(
             backgroundColor: AppTheme.primaryGold,
@@ -93,7 +101,7 @@ class _DebtsScreenState extends State<DebtsScreen> with SingleTickerProviderStat
                   
                   // Custom Glass Segmented Control
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    padding: const EdgeInsets.symmetric(horizontal: 16), // Reduced from 24
                     child: GlassSegmentedControl(
                       selectedIndex: _tabController.index,
                       tabs: const ['Requests', 'Owed to Me', 'I Owe'],
@@ -312,6 +320,8 @@ class _DebtsScreenState extends State<DebtsScreen> with SingleTickerProviderStat
     VoidCallback? onAccept,
     VoidCallback? onReject,
     VoidCallback? onSettle,
+    VoidCallback? onDelete,
+    bool isHistory = false,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -458,20 +468,49 @@ class _DebtsScreenState extends State<DebtsScreen> with SingleTickerProviderStat
                 ],
               ),
             ],
-            if (isOwedToMe) ...[
+            if (isOwedToMe && !isHistory) ...[
               const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: onSettle,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.success,
-                    foregroundColor: Colors.white,
+              Row(
+                children: [
+                   Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => _showDeleteDebtConfirmation(context, debt),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppTheme.error,
+                        side: const BorderSide(color: AppTheme.error),
+                      ),
+                      child: const Text('Cancel Request'),
+                    ),
                   ),
-                  child: const Text('Mark as Settled'),
-                ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: onSettle,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.success,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: const Text('Settled'),
+                    ),
+                  ),
+                ],
               ),
             ],
+            if (isHistory) ...[
+              const SizedBox(height: 12),
+               SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: onDelete,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.error,
+                    side: const BorderSide(color: AppTheme.error),
+                  ),
+                  icon: const Icon(Icons.delete_outline, size: 20),
+                  label: const Text('Delete from History'),
+                ),
+              ),
+            ]
           ],
         ),
       ),
@@ -864,6 +903,100 @@ class _DebtsScreenState extends State<DebtsScreen> with SingleTickerProviderStat
           ],
         );
       },
+    );
+  }
+  void _showDebtHistory(BuildContext context, AppProvider provider) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.8,
+        decoration: BoxDecoration(
+          color: AppTheme.surface.withValues(alpha: 0.95),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.1))),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 16),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+             Text(
+              'Debt History',
+              style: GoogleFonts.outfit(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Expanded(
+              child: StreamBuilder<List<DebtModel>>(
+                stream: _debtService.getDebtHistory(provider.currentUser?.id ?? ''),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  final debts = snapshot.data!;
+                  if (debts.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.history, size: 64, color: AppTheme.textSecondary.withValues(alpha: 0.5)),
+                           const SizedBox(height: 16),
+                          Text(
+                            'No history yet',
+                            style: TextStyle(color: AppTheme.textSecondary.withValues(alpha: 0.8)),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  final userIds = debts.map((d) => d.fromUserId == provider.currentUser?.id ? d.toUserId : d.fromUserId).toSet().toList();
+                  
+                  return FutureBuilder<Map<String, UserModel>>(
+                    future: provider.getUsersById(userIds),
+                    builder: (context, usersSnapshot) {
+                      final users = usersSnapshot.data ?? {};
+                      
+                      return ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: debts.length,
+                        itemBuilder: (context, index) {
+                          final debt = debts[index];
+                          final isOwedToMe = debt.fromUserId == provider.currentUser?.id;
+                          final otherUserId = isOwedToMe ? debt.toUserId : debt.fromUserId;
+                          final otherUser = users[otherUserId];
+
+                          return _buildDebtCard(
+                            context: context,
+                            debt: debt,
+                            userName: otherUser?.name ?? 'Unknown',
+                            isOwedToMe: isOwedToMe,
+                            isHistory: true,
+                            onDelete: () => _showDeleteDebtConfirmation(context, debt),
+                          );
+                        },
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

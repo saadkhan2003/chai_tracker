@@ -43,7 +43,7 @@ class AppTheme {
         centerTitle: true,
         scrolledUnderElevation: 0,
         titleTextStyle: GoogleFonts.outfit(
-          fontSize: 22,
+          fontSize: 20, // Reduced from 22
           fontWeight: FontWeight.w700,
           color: textPrimary,
           letterSpacing: 0.5,
@@ -64,12 +64,12 @@ class AppTheme {
           foregroundColor: Colors.black,
           elevation: 4,
           shadowColor: primaryGold.withOpacity(0.4),
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12), // Compact padding
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(30), // Pill shape
           ),
           textStyle: GoogleFonts.outfit(
-            fontSize: 16,
+            fontSize: 15, // Reduced from 16
             fontWeight: FontWeight.w700,
             letterSpacing: 0.5,
           ),
@@ -79,12 +79,12 @@ class AppTheme {
         style: OutlinedButton.styleFrom(
           foregroundColor: primaryGold,
           side: const BorderSide(color: primaryGold, width: 1.5),
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12), // Compact padding
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(30),
           ),
           textStyle: GoogleFonts.outfit(
-            fontSize: 16,
+            fontSize: 15, // Reduced from 16
             fontWeight: FontWeight.w600,
           ),
         ),

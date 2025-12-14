@@ -24,7 +24,7 @@ import '../group/manage_members_screen.dart';
 import '../../services/youtube_service.dart';
 import '../../models/youtube_video_model.dart';
 import '../../widgets/youtube_video_card.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -286,32 +286,37 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHomeTab(BuildContext context, AppProvider provider) {
+    if (!provider.hasGroup) return const SizedBox();
+    
     final group = provider.selectedGroup!;
     final todayAssignee = group.getTodayAssignee();
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         title: PopupMenuButton<String>(
           offset: const Offset(0, 40),
           child: GlassCard(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             borderRadius: BorderRadius.circular(30),
             opacity: 0.2,
-            blur: 10,
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Expanded(
-                  child: Text(
-                    group.name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+
+                Text(
+                  group.name,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primaryGold,
+                    letterSpacing: 1,
                   ),
                 ),
-                const SizedBox(width: 4),
-                const Icon(Icons.arrow_drop_down),
+                const SizedBox(width: 8),
+                const Icon(Icons.keyboard_arrow_down, color: AppTheme.primaryGold),
               ],
             ),
           ),
@@ -321,48 +326,39 @@ class _HomeScreenState extends State<HomeScreen> {
             } else if (value == 'join') {
               _showJoinGroupDialog(context, provider);
             } else {
+              // Switch group
               final selectedGroup = provider.userGroups.firstWhere((g) => g.id == value);
               provider.selectGroup(selectedGroup);
             }
           },
-          itemBuilder: (context) => [
-            // List of groups
-            ...provider.userGroups.map((g) => PopupMenuItem(
-              value: g.id,
-              child: Row(
-                children: [
-                  if (g.id == group.id)
-                    const Icon(Icons.check, size: 18, color: AppTheme.primaryGold),
-                  if (g.id != group.id)
-                    const SizedBox(width: 18),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      g.name,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontWeight: g.id == group.id ? FontWeight.bold : FontWeight.normal,
-                        color: g.id == group.id ? AppTheme.primaryGold : null,
-                      ),
-                    ),
-                  ),
-                ],
+          itemBuilder: (context) {
+            return [
+              ...provider.userGroups.map((g) => PopupMenuItem(
+                value: g.id,
+                child: Row(
+                  children: [
+                    if (g.id == group.id)
+                      const Icon(Icons.check, color: AppTheme.primaryGold, size: 20)
+                    else
+                      const SizedBox(width: 20),
+                    const SizedBox(width: 8),
+                    Text(g.name),
+                  ],
+                ),
+              )),
+              const PopupMenuDivider(),
+              const PopupMenuItem(
+                value: 'create',
+                child: Row(children: [Icon(Icons.add_circle_outline, size: 20), SizedBox(width: 8), Text('Create New Group')]),
               ),
-            )),
-            const PopupMenuDivider(),
-            const PopupMenuItem(
-              value: 'create',
-              child: Row(children: [Icon(Icons.add_circle_outline, size: 20), SizedBox(width: 8), Text('Create New Group')]),
-            ),
-            const PopupMenuItem(
-              value: 'join',
-              child: Row(children: [Icon(Icons.group_add_outlined, size: 20), SizedBox(width: 8), Text('Join Group')]),
-            ),
-          ],
+              const PopupMenuItem(
+                value: 'join',
+                child: Row(children: [Icon(Icons.group_add_outlined, size: 20), SizedBox(width: 8), Text('Join Group')]),
+              ),
+            ];
+          },
         ),
         actions: [
-          // Original swap button removed as it's now in the title
-          // Keeping profile and logout buttons
           IconButton(
             icon: const Icon(Icons.person_outline),
             tooltip: 'Profile',
@@ -391,7 +387,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 color: AppTheme.primaryGold.withOpacity(0.15),
               ),
               child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 100, sigmaY: 100),
+                filter: ui.ImageFilter.blur(sigmaX: 100, sigmaY: 100),
                 child: Container(color: Colors.transparent),
               ),
             ),
@@ -407,7 +403,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 color: AppTheme.accentAmber.withOpacity(0.1),
               ),
               child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 80, sigmaY: 80),
+                filter: ui.ImageFilter.blur(sigmaX: 80, sigmaY: 80),
                 child: Container(color: Colors.transparent),
               ),
             ),
@@ -420,46 +416,66 @@ class _HomeScreenState extends State<HomeScreen> {
               backgroundColor: AppTheme.surface,
               onRefresh: () async {
                 await provider.refreshAll();
+                await YouTubeService().clearCache();
+                setState(() {});
               },
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                padding: const EdgeInsets.only(bottom: 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Today's Date
-                    Center(
-                      child: GlassCard(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        opacity: 0.2,
-                        borderRadius: BorderRadius.circular(30),
-                        child: Text(
-                          DateFormat('EEEE, MMMM d').format(DateTime.now()),
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: AppTheme.textSecondary.withOpacity(0.9),
-                            letterSpacing: 1,
-                          ),
-                        ),
-                      ),
+                    // Header Section
+                    _buildHeader(context, provider, group),
+                    
+                    const SizedBox(height: 16), // Reduced spacing
+                    
+                    // Daily Chai Update Card
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16), // Reduced global padding
+                      child: _buildTodayChaiCard(context, provider, todayAssignee),
                     ),
-                    const SizedBox(height: 24),
-                    // Today's Chai Card
-                    _buildTodayChaiCard(context, provider, todayAssignee),
-                    const SizedBox(height: 32),
+
+                    const SizedBox(height: 16), // Reduced spacing
+
                     // Pending Chai Section
                     _buildPendingChaiSection(context, provider),
-                    // YouTube Section
-                    if (group.youtubeChannelUrl != null) ...[
-                      const SizedBox(height: 32),
-                      _buildYouTubeSection(context, provider, group),
-                    ],
+
+                    const SizedBox(height: 16), // Reduced spacing
+
+                    // YouTube Videos Section
+                    if (group.youtubeChannelUrl != null && group.youtubeChannelUrl!.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 16), // Aligned with global padding
+                        child: _buildYouTubeSection(context, provider, group),
+                      ),
                   ],
                 ),
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context, AppProvider provider, GroupModel group) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+      child: Center(
+        child: GlassCard(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          opacity: 0.2,
+          borderRadius: BorderRadius.circular(30),
+          child: Text(
+            DateFormat('EEEE, MMMM d').format(DateTime.now()),
+            style: TextStyle(
+              fontSize: 14,
+              color: AppTheme.textSecondary.withOpacity(0.9),
+              letterSpacing: 1,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -478,8 +494,8 @@ class _HomeScreenState extends State<HomeScreen> {
             final isDone = record?.isDone ?? false;
 
             return GlassCard(
-              padding: const EdgeInsets.all(32),
-              borderRadius: BorderRadius.circular(30),
+              padding: const EdgeInsets.all(20), // Reduced from 32
+              borderRadius: BorderRadius.circular(24), // Slightly reduced radius
               // Dynamic background tint based on status
               color: isDone 
                   ? AppTheme.success.withOpacity(0.1) 
@@ -489,7 +505,7 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(12), // Reduced from 16
                     decoration: BoxDecoration(
                       color: isDone 
                           ? AppTheme.success.withOpacity(0.2) 
@@ -505,25 +521,25 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     child: Icon(
                       isDone ? Icons.check_circle_rounded : Icons.local_cafe_rounded,
-                      size: 48,
+                      size: 40, // Reduced from 48
                       color: isDone ? AppTheme.success : AppTheme.primaryGold,
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16), // Reduced from 20
                   Text(
                     isDone ? 'Chai Brought! ☕' : "Today's Chai Duty",
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 13, // Reduced from 14
                       color: AppTheme.textSecondary.withOpacity(0.9),
                       fontWeight: FontWeight.w600,
                       letterSpacing: 1.5,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   Text(
                     isMe ? 'Your Turn!' : userName,
                     style: TextStyle(
-                      fontSize: 32,
+                      fontSize: 26, // Reduced from 32
                       fontWeight: FontWeight.bold,
                       color: AppTheme.textPrimary,
                       shadows: [
@@ -536,7 +552,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     textAlign: TextAlign.center,
                   ),
                   if (!isDone && !isMe) ...[
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 20), // Reduced spacing
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
@@ -544,16 +560,16 @@ class _HomeScreenState extends State<HomeScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.success,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          padding: const EdgeInsets.symmetric(vertical: 12), // Compact button
                           elevation: 0,
                         ),
-                        icon: const Icon(Icons.check),
+                        icon: const Icon(Icons.check, size: 20),
                         label: const Text('Mark as Done'),
                       ),
                     ),
                   ],
                   if (!isDone && isMe) ...[
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 20),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
@@ -561,10 +577,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.success,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
                           elevation: 0,
                         ),
-                        icon: const Icon(Icons.check),
+                        icon: const Icon(Icons.check, size: 20),
                         label: const Text('I Brought Chai!'),
                       ),
                     ),
@@ -619,7 +635,7 @@ class _HomeScreenState extends State<HomeScreen> {
         final userName = snapshot.data?[record.assignedTo]?.name ?? 'Loading...';
 
         return GlassCard(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12), // Reduced
           borderRadius: BorderRadius.circular(20),
           opacity: 0.1,
           color: AppTheme.accentAmber.withOpacity(0.05),
@@ -2029,7 +2045,7 @@ class _HomeScreenState extends State<HomeScreen> {
               const Text(
                 'Join Group',
                 style: TextStyle(
-                  fontSize: 24,
+                  fontSize: 20, // Reduced from 24
                   fontWeight: FontWeight.bold,
                   color: AppTheme.textPrimary,
                 ),
@@ -2039,7 +2055,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 'Enter the 6-character code shared by your friend',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 13, // Reduced from 14
                   color: AppTheme.textSecondary.withValues(alpha: 0.8),
                 ),
               ),
@@ -2129,11 +2145,11 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
+      builder: (sheetContext) => Container(
+        padding: const EdgeInsets.all(20), // Reduced from 24
         decoration: BoxDecoration(
           color: AppTheme.surface.withValues(alpha: 0.95),
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)), // Reduced radius
           border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.1))),
           boxShadow: [
             BoxShadow(
@@ -2160,7 +2176,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const Text(
               'Group Settings',
               style: TextStyle(
-                fontSize: 20,
+                fontSize: 18, // Reduced from 20
                 fontWeight: FontWeight.bold,
                 color: AppTheme.textPrimary,
               ),
@@ -2334,7 +2350,7 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               const Text(
                 'Edit Group Name',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold), // Reduced from 20
               ),
               const SizedBox(height: 24),
               TextField(
@@ -2421,7 +2437,7 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 16),
               const Text(
                 'Leave Group?',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold), // Reduced from 20
               ),
               const SizedBox(height: 12),
               Text(
@@ -2491,7 +2507,7 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 16),
               const Text(
                 'Delete Group?',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold), // Reduced from 20
               ),
               const SizedBox(height: 12),
               Text(
@@ -2559,11 +2575,11 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.notifications_active, color: AppTheme.primaryGold, size: 40),
+              const Icon(Icons.notifications_active, color: AppTheme.primaryGold, size: 32), // Reduced from 40
               const SizedBox(height: 16),
               const Text(
                 'Daily Reminder',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold), // Reduced from 20
               ),
               const SizedBox(height: 24),
               StatefulBuilder(
@@ -2608,7 +2624,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: Text(
                             selectedTime.format(context),
                             style: const TextStyle(
-                              fontSize: 32,
+                              fontSize: 26, // Reduced from 32
                               fontWeight: FontWeight.bold,
                               color: AppTheme.primaryGold,
                             ),
@@ -2637,7 +2653,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           }
                         },
                         style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
-                        child: const Text('Turn Off', style: TextStyle(color: AppTheme.error)),
+                        child: const Text('Turn Off', style: TextStyle(color: AppTheme.error, fontSize: 13)), // Reduced
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -2925,9 +2941,10 @@ class _HomeScreenState extends State<HomeScreen> {
             }
 
             return SizedBox(
-              height: 260,
+              height: 250,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 itemCount: videos.length,
                 itemBuilder: (context, index) {
                   return YouTubeVideoCard(video: videos[index]);
@@ -2958,6 +2975,13 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         actions: [
           TextButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              _showDeleteAccountConfirmation(context, provider);
+            },
+            child: const Text('Delete Account', style: TextStyle(color: AppTheme.error)),
+          ),
+          TextButton(
             onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
@@ -2980,6 +3004,60 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _showDeleteAccountConfirmation(BuildContext context, AppProvider provider) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppTheme.surface,
+        title: Row(
+          children: [
+            Icon(Icons.warning, color: AppTheme.error),
+            const SizedBox(width: 12),
+            const Text('Delete Account?', style: TextStyle(color: AppTheme.textPrimary)),
+          ],
+        ),
+        content: const Text(
+          'This will permanently delete your account and all associated data. This action cannot be undone. Are you sure?',
+          style: TextStyle(color: AppTheme.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              try {
+                // Re-authenticate user would be ideal here, but for now direct delete
+                // await provider.currentUser?.delete(); // Invalid call
+                
+                await Provider.of<AppProvider>(context, listen: false).deleteAccount();
+                
+
+
+                if (context.mounted) {
+                  Navigator.pushReplacementNamed(context, '/login');
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error: $e. Try logging in again first.'), backgroundColor: AppTheme.error),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.error,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('DELETE PERMANENTLY'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showSetYouTubeChannelDialog(BuildContext context, AppProvider provider, GroupModel group) {
     final TextEditingController controller = TextEditingController(
       text: group.youtubeChannelUrl ?? '',
@@ -2991,9 +3069,9 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: AppTheme.surface,
         title: Row(
           children: [
-            Icon(Icons.play_circle_outline, color: Colors.red),
-            const SizedBox(width: 12),
-            const Text('YouTube Channel', style: TextStyle(color: AppTheme.textPrimary)),
+             Icon(Icons.play_circle_outline, color: Colors.red, size: 20), // Reduced size
+            const SizedBox(width: 8),
+            const Text('YouTube Channel', style: TextStyle(color: AppTheme.textPrimary, fontSize: 18)), // Explicit size
           ],
         ),
         content: SingleChildScrollView(
@@ -3013,6 +3091,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   labelText: 'Channel URL',
                   hintText: 'https://youtube.com/@channelname',
                   hintStyle: TextStyle(color: AppTheme.textSecondary),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12), // Compact
+                  isDense: true,
                 ),
               ),
             ],

@@ -142,4 +142,15 @@ class AuthService {
       'phone': phone,
     });
   }
+
+  // Delete account
+  Future<void> deleteAccount() async {
+    final user = _auth.currentUser;
+    if (user != null) {
+       // Delete user data from Firestore
+      await _firestore.collection('users').doc(user.uid).delete();
+      // Delete Auth user
+      await user.delete();
+    }
+  }
 }

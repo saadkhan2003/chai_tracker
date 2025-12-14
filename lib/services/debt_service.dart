@@ -92,7 +92,7 @@ class DebtService {
           ..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
   }
 
-  // Get pending debt requests for user (requests sent TO user) - simple query
+  // Get pending debt requests for user (requests sent TO user)
   Stream<List<DebtModel>> getPendingDebtRequests(String userId) {
     return _firestore
         .collection('debts')
@@ -104,6 +104,23 @@ class DebtService {
             .toList()
           ..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
   }
+
+  // Get settled/rejected debts involved with user (History)
+  Stream<List<DebtModel>> getDebtHistory(String userId) {
+    return _firestore
+        .collection('debts')
+        .where(Filter.or(
+          Filter('fromUserId', isEqualTo: userId),
+          Filter('toUserId', isEqualTo: userId),
+        ))
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => DebtModel.fromMap(doc.data(), doc.id))
+            .where((d) => d.status == 'settled' || d.status == 'rejected')
+            .toList()
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
+  }
+
 
   // Get all debts for a group - simple query
   Stream<List<DebtModel>> getGroupDebts(String groupId) {
@@ -118,17 +135,5 @@ class DebtService {
           ..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
   }
 
-  // Get debt history (settled and rejected) for a user
-  Stream<List<DebtModel>> getDebtHistory(String userId) {
-    return _firestore
-        .collection('debts')
-        .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => DebtModel.fromMap(doc.data(), doc.id))
-            .where((d) => 
-                (d.fromUserId == userId || d.toUserId == userId) &&
-                (d.status == 'settled' || d.status == 'rejected'))
-            .toList()
-          ..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
-  }
+
 }

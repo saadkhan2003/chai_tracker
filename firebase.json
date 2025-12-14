@@ -1,1 +1,36 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"angaargrp","appId":"1:359692487908:android:ba274ad93b76ab867eb0f1","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"angaargrp","configurations":{"android":"1:359692487908:android:ba274ad93b76ab867eb0f1","ios":"1:359692487908:ios:2ef10d46082a02647eb0f1"}}}}}}
+{
+    "hosting": {
+        "public": "build/web",
+        "ignore": [
+            "firebase.json",
+            "**/.*",
+            "**/node_modules/**"
+        ],
+        "rewrites": [
+            {
+                "source": "**",
+                "destination": "/index.html"
+            }
+        ]
+    },
+    "flutter": {
+        "platforms": {
+            "android": {
+                "default": {
+                    "projectId": "angaargrp",
+                    "appId": "1:359692487908:android:ba274ad93b76ab867eb0f1",
+                    "fileOutput": "android/app/google-services.json"
+                }
+            },
+            "dart": {
+                "lib/firebase_options.dart": {
+                    "projectId": "angaargrp",
+                    "configurations": {
+                        "android": "1:359692487908:android:ba274ad93b76ab867eb0f1",
+                        "ios": "1:359692487908:ios:2ef10d46082a02647eb0f1"
+                    }
+                }
+            }
+        }
+    }
+}
