@@ -150,4 +150,18 @@ class GroupService {
       'reminderMinute': null,
     });
   }
+
+  // Set YouTube channel URL
+  Future<void> setYouTubeChannel(String groupId, String channelUrl) async {
+    await _firestore.collection('groups').doc(groupId).update({
+      'youtubeChannelUrl': channelUrl,
+    });
+  }
+
+  // Clear YouTube channel URL
+  Future<void> clearYouTubeChannel(String groupId) async {
+    await _firestore.collection('groups').doc(groupId).update({
+      'youtubeChannelUrl': null,
+    });
+  }
 }

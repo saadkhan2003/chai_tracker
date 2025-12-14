@@ -371,13 +371,32 @@ class _DebtsScreenState extends State<DebtsScreen> with SingleTickerProviderStat
                     ],
                   ),
                 ),
-                Text(
-                  'Rs. ${debt.amount.toStringAsFixed(0)}',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: isOwedToMe ? AppTheme.success : AppTheme.error,
-                  ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      'Rs. ${debt.amount.toStringAsFixed(0)}',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: isOwedToMe ? AppTheme.success : AppTheme.error,
+                      ),
+                    ),
+                    // Menu icon for debt creator
+                    Consumer<AppProvider>(
+                      builder: (context, provider, _) {
+                        final isCreator = debt.fromUserId == provider.currentUser?.id;
+                        if (!isCreator) return const SizedBox.shrink();
+                        
+                        return IconButton(
+                          icon: Icon(Icons.more_vert, size: 20, color: AppTheme.textSecondary),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          onPressed: () => _showDebtOptionsDialog(context, provider, debt),
+                        );
+                      },
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -643,6 +662,208 @@ class _DebtsScreenState extends State<DebtsScreen> with SingleTickerProviderStat
           );
         },
       ),
+    );
+  }
+
+  void _showDebtOptionsDialog(BuildContext context, AppProvider provider, DebtModel debt) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (dialogContext) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: AppTheme.surface.withValues(alpha: 0.95),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+          border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.1))),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Debt Options',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 24),
+            
+            // Edit option
+            ListTile(
+              leading: Icon(Icons.edit, color: AppTheme.primaryGold),
+              title: const Text('Edit Debt', style: TextStyle(color: AppTheme.textPrimary)),
+              onTap: () {
+                Navigator.pop(dialogContext);
+                _showEditDebtDialog(context, provider, debt);
+              },
+            ),
+            
+            // Delete option
+            ListTile(
+              leading: Icon(Icons.delete, color: AppTheme.error),
+              title: const Text('Delete Debt', style: TextStyle(color: AppTheme.textPrimary)),
+              onTap: () {
+                Navigator.pop(dialogContext);
+                _showDeleteDebtConfirmation(context, debt);
+              },
+            ),
+            
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showEditDebtDialog(BuildContext context, AppProvider provider, DebtModel debt) {
+    final amountController = TextEditingController(text: debt.amount.toStringAsFixed(0));
+    final reasonController = TextEditingController(text: debt.reason);
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: AppTheme.surface,
+          title: const Text('Edit Debt', style: TextStyle(color: AppTheme.textPrimary)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: amountController,
+                keyboardType: TextInputType.number,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  labelText: 'Amount (Rs.)',
+                  prefixText: 'Rs. ',
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: reasonController,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  labelText: 'Reason (optional)',
+                  hintText: 'e.g., Chai money',
+                ),
+                maxLines: 2,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (amountController.text.isNotEmpty) {
+                  final amount = double.tryParse(amountController.text);
+                  if (amount != null && amount > 0) {
+                    Navigator.pop(dialogContext);
+                    try {
+                      await _debtService.updateDebt(
+                        debtId: debt.id,
+                        amount: amount,
+                        reason: reasonController.text.trim(),
+                      );
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Debt updated successfully! ✓'),
+                            backgroundColor: AppTheme.success,
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Error: $e'),
+                            backgroundColor: AppTheme.error,
+                          ),
+                        );
+                      }
+                    }
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryGold,
+                foregroundColor: Colors.black,
+              ),
+              child: const Text('Save Changes'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showDeleteDebtConfirmation(BuildContext context, DebtModel debt) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: AppTheme.surface,
+          title: Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: AppTheme.error),
+              const SizedBox(width: 12),
+              const Text('Delete Debt?', style: TextStyle(color: AppTheme.textPrimary)),
+            ],
+          ),
+          content: Text(
+            'Are you sure you want to delete this debt request? This action cannot be undone.',
+            style: TextStyle(color: AppTheme.textSecondary),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(dialogContext);
+                try {
+                  await _debtService.deleteDebt(debt.id);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Debt deleted successfully! ✓'),
+                        backgroundColor: AppTheme.success,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Error: $e'),
+                        backgroundColor: AppTheme.error,
+                      ),
+                    );
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.error,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
     );
   }
 }

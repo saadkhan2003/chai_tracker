@@ -8,6 +8,7 @@ class GroupModel {
   final DateTime createdAt;
   final int? reminderHour;   // Hour for daily reminder (0-23)
   final int? reminderMinute; // Minute for daily reminder (0-59)
+  final String? youtubeChannelUrl; // YouTube channel URL for video feed
 
   GroupModel({
     required this.id,
@@ -19,6 +20,7 @@ class GroupModel {
     required this.createdAt,
     this.reminderHour,
     this.reminderMinute,
+    this.youtubeChannelUrl,
   });
 
   factory GroupModel.fromMap(Map<String, dynamic> map, String id) {
@@ -32,6 +34,7 @@ class GroupModel {
       createdAt: map['createdAt']?.toDate() ?? DateTime.now(),
       reminderHour: map['reminderHour'],
       reminderMinute: map['reminderMinute'],
+      youtubeChannelUrl: map['youtubeChannelUrl'],
     );
   }
 
@@ -45,6 +48,7 @@ class GroupModel {
       'createdAt': createdAt,
       'reminderHour': reminderHour,
       'reminderMinute': reminderMinute,
+      'youtubeChannelUrl': youtubeChannelUrl,
     };
   }
 

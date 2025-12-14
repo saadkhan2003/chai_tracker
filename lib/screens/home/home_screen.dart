@@ -1,7 +1,9 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'dart:ui' as ui;
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../providers/app_provider.dart';
@@ -18,6 +20,11 @@ import '../../models/user_model.dart';
 import '../../models/group_model.dart';
 import '../history_screen.dart';
 import '../group/edit_rotation_screen.dart';
+import '../group/manage_members_screen.dart';
+import '../../services/youtube_service.dart';
+import '../../models/youtube_video_model.dart';
+import '../../widgets/youtube_video_card.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -172,12 +179,7 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Logout',
-            onPressed: () async {
-              await provider.logout();
-              if (mounted) {
-                Navigator.pushReplacementNamed(context, '/login');
-              }
-            },
+            onPressed: () => _showLogoutConfirmation(context, provider),
           ),
         ],
       ),
@@ -371,12 +373,7 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Logout',
-            onPressed: () async {
-              await provider.logout();
-              if (mounted) {
-                Navigator.pushReplacementNamed(context, '/login');
-              }
-            },
+            onPressed: () => _showLogoutConfirmation(context, provider),
           ),
         ],
       ),
@@ -452,6 +449,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 32),
                     // Pending Chai Section
                     _buildPendingChaiSection(context, provider),
+                    // YouTube Section
+                    if (group.youtubeChannelUrl != null) ...[
+                      const SizedBox(height: 32),
+                      _buildYouTubeSection(context, provider, group),
+                    ],
                   ],
                 ),
               ),
@@ -1674,12 +1676,7 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Logout',
-            onPressed: () async {
-              await provider.logout();
-              if (mounted) {
-                Navigator.pushReplacementNamed(context, '/login');
-              }
-            },
+            onPressed: () => _showLogoutConfirmation(context, provider),
           ),
         ],
       ),
@@ -2146,9 +2143,11 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+        child: SafeArea(
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
             Container(
               width: 40,
               height: 4,
@@ -2202,6 +2201,32 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
               ),
               const SizedBox(height: 16),
+              _buildSettingsOption(
+                icon: Icons.people_outline,
+                title: 'Manage Members',
+                subtitle: '${group.members.length} members',
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ManageMembersScreen(group: group),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+              _buildSettingsOption(
+                icon: Icons.play_circle_outline,
+                title: 'YouTube Channel',
+                subtitle: group.youtubeChannelUrl != null ? 'Connected' : 'Not set',
+                color: Colors.red,
+                onTap: () {
+                  Navigator.pop(context);
+                  _showSetYouTubeChannelDialog(context, provider, group);
+                },
+              ),
+              const SizedBox(height: 16),
               Divider(color: Colors.white.withValues(alpha: 0.1)),
               const SizedBox(height: 16),
               _buildSettingsOption(
@@ -2224,10 +2249,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
               ),
             const SizedBox(height: 32),
-          ],
+            ],
+          ),
         ),
       ),
-    );
+    ),
+  );
   }
 
   Widget _buildSettingsOption({
@@ -2654,6 +2681,398 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildYouTubeSection(BuildContext context, AppProvider provider, GroupModel group) {
+    final youtubeService = YouTubeService();
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Channel Info Banner
+        FutureBuilder<Map<String, String>?>(
+          future: youtubeService.fetchChannelInfo(group.youtubeChannelUrl!),
+          builder: (context, channelSnapshot) {
+            if (channelSnapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator()));
+            }
+            if (channelSnapshot.hasError) {
+              return Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Text('Error loading channel: ${channelSnapshot.error}', style: TextStyle(color: Colors.red)),
+              );
+            }
+            if (!channelSnapshot.hasData || channelSnapshot.data == null) {
+              return const Padding(
+                padding: EdgeInsets.all(8.0),
+                child: Text('Channel info not found (check URL)', style: TextStyle(color: Colors.orange)),
+              );
+            }
+            if (channelSnapshot.hasData && channelSnapshot.data != null) {
+              final channelInfo = channelSnapshot.data!;
+              
+              return Column(
+                children: [
+                  // Channel Banner
+                  if (channelInfo['banner'] != null && channelInfo['banner']!.isNotEmpty)
+                    Container(
+                      height: 120,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        image: DecorationImage(
+                          image: NetworkImage(channelInfo['banner']!),
+                          fit: BoxFit.cover,
+                          onError: (exception, stackTrace) {}, 
+                        ),
+                        gradient: LinearGradient(
+                          colors: [Colors.red.shade900, Colors.red.shade600],
+                        ),
+                      ),
+                    )
+                  else if (channelInfo['thumbnail'] != null)
+                    // Fallback: Blurred Profile Picture as Banner
+                    Stack(
+                      children: [
+                        Container(
+                          height: 120,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: ImageFiltered(
+                              imageFilter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                              child: Image.network(
+                                channelInfo['thumbnail']!,
+                                fit: BoxFit.cover,
+                                width: double.infinity,
+                                height: 120,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Container(
+                                    color: AppTheme.primaryGold.withOpacity(0.3),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        ),
+                        // Overlay gradient for text readability
+                        Container(
+                          height: 120,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            color: Colors.black.withOpacity(0.3),
+                          ),
+                        ),
+                        // Channel Name centered
+                        Positioned.fill(
+                          child: Center(
+                            child: Text(
+                              channelInfo['title'] ?? '',
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                letterSpacing: 1.5,
+                                shadows: [
+                                  Shadow(
+                                    offset: Offset(0, 2),
+                                    blurRadius: 4.0,
+                                    color: Colors.black54,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Channel Profile & Name
+                  Row(
+                    children: [
+                      // Profile Picture
+                      Container(
+                        width: 64,
+                        height: 64,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AppTheme.surface,
+                          border: Border.all(color: Colors.white24, width: 2),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(40),
+                          child: channelInfo['thumbnail'] != null
+                              ? Image.network(
+                                  channelInfo['thumbnail']!,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    // Letter Avatar Fallback
+                                    return Center(
+                                      child: Text(
+                                        (channelInfo['title'] ?? 'C').substring(0, 1).toUpperCase(),
+                                        style: const TextStyle(
+                                          fontSize: 28,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppTheme.primaryGold,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                )
+                              : Center(
+                                  child: Text(
+                                    (channelInfo['title'] ?? 'C').substring(0, 1).toUpperCase(),
+                                    style: const TextStyle(
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppTheme.primaryGold,
+                                    ),
+                                  ),
+                                ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      
+                      // Channel Name
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              channelInfo['title'] ?? 'YouTube Channel',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                const Icon(Icons.subscriptions, size: 14, color: AppTheme.textSecondary),
+                                const SizedBox(width: 4),
+                                const Text(
+                                  'Subscribed Channel',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppTheme.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  
+                  const SizedBox(height: 20),
+                ],
+              );
+            }
+            
+            // Fallback if channel info fails
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Row(
+                children: [
+                  Icon(Icons.play_circle_outline, color: Colors.red, size: 28),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'Latest Videos',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+        
+        // Videos List
+        FutureBuilder<List<YouTubeVideo>>(
+          future: youtubeService.fetchLatestVideos(group.youtubeChannelUrl!),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(32),
+                  child: CircularProgressIndicator(color: Colors.red),
+                ),
+              );
+            }
+
+            final videos = snapshot.data!;
+            if (videos.isEmpty) {
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(32),
+                  child: Text(
+                    'No videos found',
+                    style: TextStyle(color: AppTheme.textSecondary),
+                  ),
+                ),
+              );
+            }
+
+            return SizedBox(
+              height: 260,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: videos.length,
+                itemBuilder: (context, index) {
+                  return YouTubeVideoCard(video: videos[index]);
+                },
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  void _showLogoutConfirmation(BuildContext context, AppProvider provider) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppTheme.surface,
+        title: Row(
+          children: [
+            Icon(Icons.logout, color: AppTheme.error),
+            const SizedBox(width: 12),
+            const Text('Logout?', style: TextStyle(color: AppTheme.textPrimary)),
+          ],
+        ),
+        content: const Text(
+          'Are you sure you want to logout?',
+          style: TextStyle(color: AppTheme.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              await provider.logout();
+              if (context.mounted) {
+                Navigator.pushReplacementNamed(context, '/login');
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.error,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSetYouTubeChannelDialog(BuildContext context, AppProvider provider, GroupModel group) {
+    final TextEditingController controller = TextEditingController(
+      text: group.youtubeChannelUrl ?? '',
+    );
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppTheme.surface,
+        title: Row(
+          children: [
+            Icon(Icons.play_circle_outline, color: Colors.red),
+            const SizedBox(width: 12),
+            const Text('YouTube Channel', style: TextStyle(color: AppTheme.textPrimary)),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Enter your YouTube channel URL to display latest videos',
+                style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: controller,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  labelText: 'Channel URL',
+                  hintText: 'https://youtube.com/@channelname',
+                  hintStyle: TextStyle(color: AppTheme.textSecondary),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          if (group.youtubeChannelUrl != null)
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(dialogContext);
+                await _groupService.clearYouTubeChannel(group.id);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('YouTube channel removed'),
+                      backgroundColor: AppTheme.success,
+                    ),
+                  );
+                }
+              },
+              child: const Text('Remove', style: TextStyle(color: AppTheme.error)),
+            ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final url = controller.text.trim();
+              if (url.isNotEmpty) {
+                Navigator.pop(dialogContext);
+                try {
+                  await _groupService.setYouTubeChannel(group.id, url);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('YouTube channel set successfully!'),
+                        backgroundColor: AppTheme.success,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Error: $e'),
+                        backgroundColor: AppTheme.error,
+                      ),
+                    );
+                  }
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Save'),
+          ),
+        ],
       ),
     );
   }
