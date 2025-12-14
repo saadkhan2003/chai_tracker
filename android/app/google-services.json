@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "359692487908",
+    "project_id": "angaargrp",
+    "storage_bucket": "angaargrp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:359692487908:android:ba274ad93b76ab867eb0f1",
+        "android_client_info": {
+          "package_name": "com.angaargrp.chai_tracker"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCpUy3vuaEXE7T7X974llA4DQQwE6JxV88"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
