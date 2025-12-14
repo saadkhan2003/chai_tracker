@@ -133,8 +133,8 @@ This project is open source and available under the [MIT License](LICENSE).
 
 ## 👨‍💻 Author
 
-**Your Name**
-- GitHub: [@yourusername](https://github.com/yourusername)
+**Muhammad Saad Khan**
+- GitHub: [@saadkhan2003](https://github.com/saadkhan2003)
 
 ## 🙏 Acknowledgments
 
