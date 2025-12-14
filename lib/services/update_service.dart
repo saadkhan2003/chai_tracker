@@ -2,8 +2,11 @@ import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class UpdateService {
+  static const String _lastUpdateCheckKey = 'last_update_check';
+  
   static Future<Map<String, dynamic>> checkForUpdates() async {
     try {
       final remoteConfig = FirebaseRemoteConfig.instance;
@@ -38,6 +41,30 @@ class UpdateService {
         'updateUrl': '',
         'forceUpdate': false,
       };
+    }
+  }
+  
+  // Check if we should show the update dialog (once per 24 hours)
+  static Future<bool> shouldShowUpdateDialog(bool forceUpdate) async {
+    // Always show if it's a forced update
+    if (forceUpdate) return true;
+    
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final lastCheck = prefs.getInt(_lastUpdateCheckKey) ?? 0;
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final dayInMs = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+      
+      // Show if more than 24 hours have passed
+      if (now - lastCheck > dayInMs) {
+        await prefs.setInt(_lastUpdateCheckKey, now);
+        return true;
+      }
+      
+      return false;
+    } catch (e) {
+      debugPrint('Error checking update dialog timing: $e');
+      return true; // Show on error to be safe
     }
   }
   

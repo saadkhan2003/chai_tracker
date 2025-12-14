@@ -28,6 +28,7 @@ dependencies:
   intl: ^0.19.0
   uuid: ^4.5.1
   package_info_plus: ^8.0.4
+  shared_preferences: ^2.3.4
   
   # Sharing
   share_plus: ^10.1.4

@@ -45,7 +45,11 @@ class _HomeScreenState extends State<HomeScreen> {
     final updateInfo = await UpdateService.checkForUpdates();
     
     if (updateInfo['hasUpdate'] && mounted) {
-      _showUpdateDialog(updateInfo);
+      // Check if we should show the dialog (respects 24-hour cooldown)
+      final shouldShow = await UpdateService.shouldShowUpdateDialog(updateInfo['forceUpdate']);
+      if (shouldShow) {
+        _showUpdateDialog(updateInfo);
+      }
     }
   }
 
